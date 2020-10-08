@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>App</title>
+</head>
+<body>
+<table>
+  {{#each rows}}
+    <tr><td>{{this.subject.value}}</td><td>{{this.predicate.value}}</td><td>{{this.object.value}}</td></tr>
+  {{/each}}
+</table>
+
+</body>
+</html>
