@@ -5,7 +5,7 @@ import { parseAll } from '@hapi/accept';
 import { MatchType } from './shared/match-type';
 import { MediaType } from './shared/media-type';
 import { getEnumKeyByEnumValue } from './shared/as-enum';
-
+import { ResourceAction } from './shared/resource-action';
 
 
 @Controller()
@@ -14,6 +14,21 @@ export class AppController {
   }
 
   resBase = this.configService.get<string>('resourceBaseUri');
+
+
+  @Get('*.:ext')
+  async file(@Param() params, @Req() request, @Res() response, @Headers() headers) {
+    const action = this.appService.discoverMatch(request);
+
+    const mediaType = this.appService.determineExtension(params.ext);
+
+    return this.handle(mediaType, action, response);
+
+
+  }
+
+
+
 
   @Get('*')
   async resource(@Param() params, @Req() request, @Res() response, @Headers() headers) {
@@ -27,13 +42,23 @@ export class AppController {
 
     // Parse a SPARQL query to a JSON object
 
-    const action = this.appService.discoverMatch(this.appService.getFullUrl(request));
+    const action = this.appService.discoverMatch(request);
 
     const accept = parseAll(headers);
 
+    const mediaType = this.appService.negotiate(accept.mediaTypes);
+
+    return this.handle(mediaType, action, response);
+
+
+  }
+
+
+  private async handle(mediaType: MediaType, action: ResourceAction, response) {
+
     switch (action.type) {
       case MatchType.HUMAN:
-        if (accept.mediaTypes[0] === MediaType.app_xhtml_xml || accept.mediaTypes[0] === MediaType.text_html) {
+        if (mediaType === MediaType.app_xhtml_xml || mediaType === MediaType.text_html) {
           const rows = await this.appService.getResourceRaw(action.resourceUri);
           return response.render(
             'page',
@@ -45,22 +70,27 @@ export class AppController {
           throw new NotAcceptableException();
         }
       case  MatchType.MACHINE:
-          const resource = await this.appService.getResource(action.resourceUri, getEnumKeyByEnumValue(MediaType,  accept.mediaTypes[0]));
-          response.set('Content-Type', accept.mediaTypes[0]);
-          resource.pipe(response);
-          return response;
+        const resource = await this.appService.getResource(action.resourceUri, getEnumKeyByEnumValue(MediaType, mediaType));
+        response.set('Content-Type', mediaType);
+        resource.pipe(response);
+        return response;
 
 
       case MatchType.RESOURCE:
-        if ( accept.mediaTypes[0] === MediaType.app_xhtml_xml || accept.mediaTypes[0] === MediaType.text_html) {
+        if (mediaType === MediaType.app_xhtml_xml || mediaType === MediaType.text_html) {
           return response.redirect(303, action.humanUrl);
-        } else
-        {
+        } else if (
+          [MediaType.turtle, MediaType.trig, MediaType.n_triples, MediaType.n_quads, MediaType.n3,
+            MediaType.rdf_xml, MediaType.rdf_xml, MediaType.json_ld, MediaType.json]
+            .some(type => type === mediaType)) {
           return response.redirect(303, action.machineUrl);
+        } else {
+          return response.redirect(303, action.humanUrl);
+
         }
 
     }
-
-
   }
+
+
 }

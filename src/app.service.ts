@@ -6,14 +6,15 @@ import { ResourceMatcher } from './shared/resource-matcher';
 import { MatchType } from './shared/match-type';
 import { SparqlService } from './shared/services/sparql.service';
 import { QuadsToJsonLdParser } from './shared/parsers/quads-to-json-ld.parser';
-import { MediaType } from './shared/media-type';
+import { Extensions, MediaType } from './shared/media-type';
 import { Parser } from './shared/parsers/parser.base';
 import { QuadsToRdfXmlParser } from './shared/parsers/quads-to-rdf-xml.parser';
 import {
   QuadsToN3Parser,
   QuadsToNQuadsParser,
   QuadsToNTriplesParser,
-  QuadsToTrigParser, QuadsToTurtleParser,
+  QuadsToTrigParser,
+  QuadsToTurtleParser,
 } from './shared/parsers/quads-to-tuples.parser';
 
 
@@ -25,7 +26,23 @@ export class AppService {
   constructor(private configService: ConfigService, private sparqlService: SparqlService) {
   }
 
-  discoverMatch(url: string): ResourceAction {
+
+  negotiate(mediaTypes: string[]): MediaType {
+    let selectedMediaType: MediaType = MediaType.text_html;
+    const keys = Object.keys(MediaType);
+    const values = Object.values(MediaType);
+    const selectedType = mediaTypes.find(
+      mt => values.some(v => v === mt)
+    );
+
+    if(!!selectedType) selectedMediaType = MediaType[keys.find(key => MediaType[key] === selectedType)];
+    return selectedMediaType;
+  }
+
+  discoverMatch(request): ResourceAction {
+
+    const url = this.getResUrl(request);
+    const reqUrl = this.getFullUrl(request);
 
     const matchers = this.configService.get('resourceNegotiation')
       .map(config => new ResourceMatcher(config))
@@ -35,10 +52,10 @@ export class AppService {
     const actions = matchers.map((matcher: ResourceMatcher) => {
       const resourceAction: ResourceAction = new ResourceAction();
       resourceAction.type = matcher.isHuman(url) ? MatchType.HUMAN : matcher.isMachine(url) ? MatchType.MACHINE : MatchType.RESOURCE;
-      resourceAction.humanUrl = matcher.getHuman(url);
-      resourceAction.machineUrl = matcher.getMachine(url);
+      resourceAction.humanUrl = matcher.getHuman(reqUrl);
+      resourceAction.machineUrl = matcher.getMachine(reqUrl);
       resourceAction.resourceUri = matcher.getResource(url);
-      resourceAction.url = url;
+      resourceAction.url = reqUrl;
       return resourceAction;
     });
 
@@ -49,6 +66,15 @@ export class AppService {
     }
   }
 
+
+  getResUrl(req) {
+    return url.format({
+      protocol: req.protocol,
+      host: req.get('host'),
+      pathname: req.params[0],
+    });
+
+  }
 
   getFullUrl(req) {
     return url.format({
@@ -101,5 +127,14 @@ export class AppService {
   }
 
 
+  determineExtension(ext: string): MediaType {
+    let mediaType = MediaType.text_html;
+    const keys = Object.keys(Extensions);
+    const selectedType = keys.find(k => Extensions[k] === ext);
 
+    if(!!selectedType) mediaType = MediaType[selectedType];
+
+    return mediaType;
+
+  }
 }

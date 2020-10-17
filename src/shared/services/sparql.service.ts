@@ -24,7 +24,8 @@ export class SparqlService {
 
   private generateResourceConstructQuery(resourceUri: string): ConstructQuery {
     return <ConstructQuery>this.parser.parse(
-      `CONSTRUCT {<${resourceUri}> ?p ?o} WHERE { <${resourceUri}> ?p ?o.} `,
+      `CONSTRUCT {<${resourceUri}> ?p ?o. ?s1 ?p1 <${resourceUri}> . ?s2 <${resourceUri}> ?o2.} WHERE 
+        {{ <${resourceUri}> ?p ?o.} UNION { ?s1 ?p1 <${resourceUri}>.} UNION { ?s2 <${resourceUri}> ?o2.}} `,
     );
   }
 
