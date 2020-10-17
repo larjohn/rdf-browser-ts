@@ -1,14 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>App</title>
+  <title>Resource view</title>
 </head>
 <body>
 <table>
-  {{#each rows}}
-    <tr><td>{{this.subject.value}}</td><td>{{this.predicate.value}}</td><td>{{this.object.value}}</td></tr>
-  {{/each}}
+  <thead>
+      <tr>
+        <th>Resource</th>
+        <th>Property</th>
+        <th>Value</th>
+      </tr>
+  </thead>
+  <tbody>
+      {{#each rows}}
+        <tr><td>{{this.subject.value}}</td><td>{{this.predicate.value}}</td><td>{{this.object.value}}</td></tr>
+      {{/each}}
+  </tbody>
+
 </table>
 
 </body>

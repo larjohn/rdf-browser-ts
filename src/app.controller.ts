@@ -1,17 +1,11 @@
 import { Controller, Get, Headers, NotAcceptableException, Param, Req, Res } from '@nestjs/common';
-import { AppService, MatchType } from './app.service';
+import { AppService } from './app.service';
 import { ConfigService } from '@nestjs/config';
-import { ConstructQuery, Generator, Parser } from 'sparqljs';
-import * as SparqlClient from 'sparql-http-client';
-import { streamToRx } from 'rxjs-stream';
-import { map, toArray } from 'rxjs/operators';
 import { parseAll } from '@hapi/accept';
+import { MatchType } from './shared/match-type';
+import { MediaType } from './shared/media-type';
+import { getEnumKeyByEnumValue } from './shared/as-enum';
 
-enum MediaTypes {
-  app_xhtml_xml = 'application/xhtml+xml',
-  text_html = 'text/html',
-  rdf_xml = 'application/rdf+xml',
-}
 
 
 @Controller()
@@ -39,8 +33,8 @@ export class AppController {
 
     switch (action.type) {
       case MatchType.HUMAN:
-        if (accept.mediaTypes[0] === MediaTypes.app_xhtml_xml || accept.mediaTypes[0] === MediaTypes.text_html) {
-          const rows = await this.appService.getResource(action.resourceUri);
+        if (accept.mediaTypes[0] === MediaType.app_xhtml_xml || accept.mediaTypes[0] === MediaType.text_html) {
+          const rows = await this.appService.getResourceRaw(action.resourceUri);
           return response.render(
             'page',
             { rows },
@@ -51,20 +45,18 @@ export class AppController {
           throw new NotAcceptableException();
         }
       case  MatchType.MACHINE:
-        if (accept.mediaTypes[0] === MediaTypes.rdf_xml) {
-          return response.json(await this.appService.getResource(action.resourceUri));
-        } else {
+          const resource = await this.appService.getResource(action.resourceUri, getEnumKeyByEnumValue(MediaType,  accept.mediaTypes[0]));
+          response.set('Content-Type', accept.mediaTypes[0]);
+          resource.pipe(response);
+          return response;
 
-          throw new NotAcceptableException();
-        }
+
       case MatchType.RESOURCE:
-        if (accept.mediaTypes[0] === MediaTypes.app_xhtml_xml || accept.mediaTypes[0] === MediaTypes.text_html) {
+        if ( accept.mediaTypes[0] === MediaType.app_xhtml_xml || accept.mediaTypes[0] === MediaType.text_html) {
           return response.redirect(303, action.humanUrl);
-        } else if (accept.mediaTypes[0] === MediaTypes.rdf_xml) {
+        } else
+        {
           return response.redirect(303, action.machineUrl);
-        } else {
-
-          throw new NotAcceptableException();
         }
 
     }
